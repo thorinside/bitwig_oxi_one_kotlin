@@ -5,6 +5,7 @@ import com.bitwig.extension.callback.ShortMidiMessageReceivedCallback
 import com.bitwig.extension.controller.ControllerExtension
 import com.bitwig.extension.controller.api.ControllerHost
 import com.bitwig.extension.controller.api.HardwareSurface
+import com.nosuchdevice.remote.RemoteHandler
 import com.nosuchdevice.track.TrackHandler
 import com.nosuchdevice.transport.TransportHandler
 
@@ -13,6 +14,7 @@ class OxiOneExtension(definition: OxiOneExtensionDefinition, host: ControllerHos
 
   private var transportHandler: TransportHandler? = null
   private var trackHandler: TrackHandler? = null
+  private var remoteHandler: RemoteHandler? = null
   private lateinit var hardwareSurface: HardwareSurface
   private lateinit var outPort: com.bitwig.extension.controller.api.MidiOut
 
@@ -31,7 +33,7 @@ class OxiOneExtension(definition: OxiOneExtensionDefinition, host: ControllerHos
     val hardware = OxiOneHardware(inPort, outPort)
 
     // hardware.testLights()
-    // hardware.testScreen(host)
+    hardware.clearScreen()
 
     transportHandler =
         TransportHandler(
@@ -42,11 +44,23 @@ class OxiOneExtension(definition: OxiOneExtensionDefinition, host: ControllerHos
         )
 
     val trackBank = host.createMainTrackBank(15, 0, 8)
+    val cursorTrack = host.createCursorTrack("OXI_CURSOR_TRACK", "Cursor Track", 0, 4, true)
+
     trackHandler =
         TrackHandler(
             inPort = inPort,
             trackBank = trackBank,
-            cursorTrack = host.createCursorTrack("OXI_CURSOR_TRACK", "Cursor Track", 0, 4, true),
+            cursorTrack = cursorTrack,
+            hardwareSurface = hardwareSurface,
+            hardware = hardware,
+            host = host
+        )
+
+    remoteHandler =
+        RemoteHandler(
+            inPort = inPort,
+            trackBank = trackBank,
+            cursorTrack = cursorTrack,
             hardwareSurface = hardwareSurface,
             hardware = hardware,
             host = host

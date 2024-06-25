@@ -2,12 +2,114 @@ package com.nosuchdevice
 
 import com.bitwig.extension.controller.api.MidiIn
 import com.bitwig.extension.controller.api.MidiOut
-import com.nosuchdevice.track.LightStateEnum
+import com.nosuchdevice.track.MultiColorLightStateEnum
 import java.awt.Color
 import java.awt.Font
 import java.awt.image.BufferedImage
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.*
+
+enum class OxiFunctionButtons(val value: Int) {
+  ARP(0),
+  SEQ_4(1),
+  LEFT_16(2),
+  END_2(3),
+  KEYBOARD_PREVIEW(4),
+  SEQ_3(5),
+  UP_32(6),
+  INIT_X2(7),
+  ARRANGER(8),
+  SEQ_2(9),
+  DOWN_48(10),
+  SAVE(11),
+  BACK(12),
+  SEQ_1(13),
+  RIGHT_64(14),
+  LOAD(15),
+  ENCODER1(16),
+  SHIFT(17),
+  MOD(18),
+  COPY_DUPLICATE(19),
+  ENCODER2(20),
+  STOP(21),
+  DIVISION(22),
+  PASTE_CLEAR(23),
+  ENCODER3(24),
+  PLAY(25),
+  LFO(26),
+  UNDO(27),
+  ENCODER4(28),
+  REC(29),
+  STEP_CHORD(30),
+  RANDOM(31),
+  MUTE(32),
+}
+
+enum class OxiLights(val value: Int) {
+  BACK(0),
+  CONFIG(1),
+  ARRANGER_SHOW(2),
+  ARRANGER_STATE(3),
+  KEYBOARD(4),
+  PREVIEW(5),
+  ARP(6),
+  ARP_HOLD(7),
+  SHIFT(8),
+  STOP(9),
+  SEQ_1(10),
+  REC(11),
+  PLAY(12),
+  SEQ_3(13),
+  NUDGE(14),
+  SYNC(15),
+  SEQ_1_SEL(16),
+  SEQ_2(17),
+  SEQ_2_SEL(18),
+  MUTE(19),
+  LOAD(20),
+  SEQ_4(21),
+  SEQ_4_SEL(22),
+  SEQ_3_SEL(23),
+  SAVE(24),
+  CLEAR(25),
+  DUPLICATE(26),
+  PASTE(27),
+  COPY(28),
+  UNDO(29),
+  RANDOM(30),
+  REDO(31),
+  RANDOM2(32),
+  INIT(33),
+  X2(34),
+  END(35),
+  TWO(36),
+  MOD(37),
+  DIVISION(38),
+  FOLLOW(39),
+  LFO(40),
+  CONDENSE(41),
+  CVOUT(42),
+  STEP_CHORD(43),
+  EXPAND(44),
+  SIXTEEN(45),
+  LEFT(46),
+  THIRTY_TWO(47),
+  UP(48),
+  FORTY_EIGHT(49),
+  RIGHT(50),
+  SIXTY_FOUR(51),
+  DOWN(52),
+  NO_LED(53),
+  PLAY2(54),
+}
+
+enum class OxiLightStates(val value: Int) {
+  OFF(0),
+  ON(1),
+  BLINK_ON(2),
+  BLINK_FAST_ON(4),
+  SHORT_ON(6),
+}
 
 class OxiOneHardware(private val inputPort: MidiIn, private val outputPort: MidiOut) :
     CoroutineScope {
@@ -20,7 +122,7 @@ class OxiOneHardware(private val inputPort: MidiIn, private val outputPort: Midi
   private val blinkMap: MutableMap<Int, Job> = mutableMapOf()
 
   // Create a 128x8 bitmap and draw a recognizable pattern
-  fun createBitmap(width: Int, height: Int, lines: List<String>): BufferedImage {
+  private fun createBitmap(width: Int, height: Int, lines: List<String>): BufferedImage {
     val image = BufferedImage(width, height, BufferedImage.TYPE_BYTE_BINARY)
     val graphics = image.createGraphics()
 
@@ -55,7 +157,7 @@ class OxiOneHardware(private val inputPort: MidiIn, private val outputPort: Midi
   }
 
   // Convert the bitmap to a hex string with the specified format
-  fun bitmapToHexString(image: BufferedImage): String {
+  private fun bitmapToHexString(image: BufferedImage): String {
     val width = image.width
     val height = image.height
     val hexString = StringBuilder("f0 03 ")
@@ -87,35 +189,26 @@ class OxiOneHardware(private val inputPort: MidiIn, private val outputPort: Midi
     return hexString.toString().trim()
   }
 
-  fun testScreen(host: com.bitwig.extension.controller.api.ControllerHost) {
+  fun clearScreen() {
     val width = 128
     val height = 64
 
-    // Create the bitmap with a pattern
-    val image =
-        createBitmap(
-            width,
-            height,
-            """
-012345678901234567890
-One Two Three Four
-Five Six Seven Eight
-Oxi One is so Great!
-            """.split(
-                "\n"
-            )
-        )
-
-    // Convert the bitmap to a hex string
+    val image = createBitmap(width, height, List(4) { "" })
     val hexString = bitmapToHexString(image)
-
-    host.println(hexString)
-
     outputPort.sendSysex(hexString)
-    host.println("Sent screen test")
   }
 
-  fun testLights() {
+  fun updateScreen(data: String) {
+    val width = 128
+    val height = 64
+
+    val lines = data.split("\n")
+    val image = createBitmap(width, height, lines)
+    val hexString = bitmapToHexString(image)
+    outputPort.sendSysex(hexString)
+  }
+
+  private fun testLights() {
 
     val maxValue = 255 // Maximum value for each color component in hex
 
@@ -131,7 +224,7 @@ Oxi One is so Great!
     }
   }
 
-  fun setLEDColor(x: Int, y: Int, r: Int, g: Int, b: Int) {
+  private fun setLEDColor(x: Int, y: Int, r: Int, g: Int, b: Int) {
     val rHigh = r shr 7
     val rLow = r and 0x7F
     val gHigh = g shr 7
@@ -163,21 +256,23 @@ Oxi One is so Great!
     outputPort.sendSysex(sysexMessage)
   }
 
-  fun updateLED(buttonNote: Int, state: LightStateEnum) {
+  fun updateLED(buttonNote: Int, state: MultiColorLightStateEnum, blink: Boolean = false) {
     val y = buttonNote % 16
     val x = buttonNote / 16
 
-    if (state == LightStateEnum.BLINK_GREEN) {
-      if (blinkMap[buttonNote] == null) blinkLED(buttonNote)
-    } else {
-      cancelBlink(buttonNote)
+    if (!blink) {
+      if (state == MultiColorLightStateEnum.BLINK_GREEN) {
+        if (blinkMap[buttonNote] == null) blinkLED(buttonNote)
+      } else {
+        cancelBlink(buttonNote)
+      }
     }
 
     val color =
         when (state) {
-          LightStateEnum.GREEN -> Color.GREEN
-          LightStateEnum.RED -> Color.RED
-          LightStateEnum.YELLOW -> Color.YELLOW
+          MultiColorLightStateEnum.GREEN -> Color.GREEN
+          MultiColorLightStateEnum.RED -> Color.RED
+          MultiColorLightStateEnum.YELLOW -> Color.YELLOW
           else -> Color.BLACK
         }
     setLEDColor(x, y, color.red, color.green, color.blue)
@@ -187,9 +282,9 @@ Oxi One is so Great!
     blinkMap[buttonNote]?.cancel()
     blinkMap[buttonNote] = launch {
       while (isActive) {
-        updateLED(buttonNote, LightStateEnum.GREEN)
+        updateLED(buttonNote, MultiColorLightStateEnum.GREEN, blink = true)
         delay(150)
-        updateLED(buttonNote, LightStateEnum.YELLOW)
+        updateLED(buttonNote, MultiColorLightStateEnum.YELLOW, blink = true)
         delay(500)
       }
     }
@@ -200,35 +295,8 @@ Oxi One is so Great!
   }
 
   fun getMidiNoteForGridButton(x: Int, y: Int): Int {
-    return x + (y * 16)
-  }
+    val mappedY = 7 - y // This changes the orientation of the grid
 
-  companion object {
-
-    // Oxi Button Mappings
-    const val BUTTON_STOP = 21
-    const val BUTTON_STOP_LIGHT = 25
-    const val BUTTON_RECORD = 29
-    const val BUTTON_RECORD_LIGHT = 27
-    const val BUTTON_PLAY = 25
-    const val BUTTON_PLAY_LIGHT = 28
-
-    const val ENC_1_CLICK = 0x34
-    const val ENC_2_CLICK = 0x35
-    const val ENC_3_CLICK = 0x36
-    const val ENC_4_CLICK = 0x37
-
-    const val ENC_1 = 0x00
-    const val ENC_2 = 0x01
-    const val ENC_3 = 0x02
-    const val ENC_4 = 0x03
-
-    const val SHIFT_BUTTON = 0x3A
-
-    const val LEDS_OFF = 0
-    const val LEDS_ON = 1
-    const val LEDS_BLINK_ON = 2
-    const val LEDS_BLINK_FAST_ON = 4
-    const val LEDS_SHORT_ON = 6
+    return x + (mappedY * 16)
   }
 }

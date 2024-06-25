@@ -3,6 +3,9 @@ package com.nosuchdevice.transport
 import com.bitwig.extension.controller.api.HardwareSurface
 import com.bitwig.extension.controller.api.MidiIn
 import com.bitwig.extension.controller.api.Transport
+import com.nosuchdevice.OxiFunctionButtons
+import com.nosuchdevice.OxiLightStates
+import com.nosuchdevice.OxiLights
 import com.nosuchdevice.OxiOneHardware
 
 class TransportHandler(
@@ -24,19 +27,19 @@ class TransportHandler(
     stopButton.setBackgroundLight(stopButtonLight)
     stopButton
         .pressedAction()
-        .setActionMatcher(inPort.createNoteOnActionMatcher(1, OxiOneHardware.BUTTON_STOP))
+        .setActionMatcher(inPort.createNoteOnActionMatcher(1, OxiFunctionButtons.STOP.value))
     stopButton.pressedAction().setBinding(transport.stopAction())
 
     recordButton.setBackgroundLight(recordButtonLight)
     recordButton
         .pressedAction()
-        .setActionMatcher(inPort.createNoteOnActionMatcher(1, OxiOneHardware.BUTTON_RECORD))
+        .setActionMatcher(inPort.createNoteOnActionMatcher(1, OxiFunctionButtons.REC.value))
     recordButton.pressedAction().setBinding(transport.recordAction())
 
     playButton.setBackgroundLight(playButtonLight)
     playButton
         .pressedAction()
-        .setActionMatcher(inPort.createNoteOnActionMatcher(1, OxiOneHardware.BUTTON_PLAY))
+        .setActionMatcher(inPort.createNoteOnActionMatcher(1, OxiFunctionButtons.PLAY.value))
     playButton.pressedAction().setBinding(transport.playAction())
 
     transport.isPlaying.markInterested()
@@ -49,22 +52,22 @@ class TransportHandler(
 
     playButtonLight.isOn.onUpdateHardware {
       hardware.setLight(
-          OxiOneHardware.BUTTON_PLAY_LIGHT,
-          if (it) OxiOneHardware.LEDS_ON else OxiOneHardware.LEDS_OFF
+          OxiLights.PLAY.value,
+          if (it) OxiLightStates.ON.value else OxiLightStates.OFF.value
       )
     }
 
     stopButtonLight.isOn.onUpdateHardware {
       hardware.setLight(
-          OxiOneHardware.BUTTON_STOP_LIGHT,
-          if (it) OxiOneHardware.LEDS_OFF else OxiOneHardware.LEDS_SHORT_ON
+          OxiLights.STOP.value,
+          if (it) OxiLightStates.OFF.value else OxiLightStates.SHORT_ON.value
       )
     }
 
     recordButtonLight.isOn.onUpdateHardware {
       hardware.setLight(
-          OxiOneHardware.BUTTON_RECORD_LIGHT,
-          if (it) OxiOneHardware.LEDS_ON else OxiOneHardware.LEDS_OFF
+          OxiLights.REC.value,
+          if (it) OxiLightStates.ON.value else OxiLightStates.OFF.value
       )
     }
   }

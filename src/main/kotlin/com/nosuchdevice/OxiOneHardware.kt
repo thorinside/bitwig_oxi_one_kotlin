@@ -1,13 +1,55 @@
 package com.nosuchdevice
 
+import com.bitwig.extension.api.Color
+import com.bitwig.extension.controller.api.HardwareLightVisualState
+import com.bitwig.extension.controller.api.InternalHardwareLightState
 import com.bitwig.extension.controller.api.MidiIn
 import com.bitwig.extension.controller.api.MidiOut
-import com.nosuchdevice.track.MultiColorLightStateEnum
-import java.awt.Color
 import java.awt.Font
 import java.awt.image.BufferedImage
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.*
+
+sealed class MultiColorLightStateEnum(val color: Color) {
+  object YELLOW : MultiColorLightStateEnum(Color.fromRGB(1.0, 1.0, 0.0))
+  object RED : MultiColorLightStateEnum(Color.fromRGB(1.0, 0.0, 0.0))
+  object GREEN : MultiColorLightStateEnum(Color.fromRGB(0.0, 1.0, 0.0))
+  data class BLINK_GREEN(val rgb: Color) : MultiColorLightStateEnum(rgb)
+  data class CUSTOM(val rgb: Color) : MultiColorLightStateEnum(rgb)
+  object OFF : MultiColorLightStateEnum(Color.fromRGB(0.0, 0.0, 0.0))
+}
+
+class MultiColorLightState(val state: MultiColorLightStateEnum) : InternalHardwareLightState() {
+  override fun getVisualState(): HardwareLightVisualState {
+    return when (state) {
+      is MultiColorLightStateEnum.YELLOW -> HardwareLightVisualState.createForColor(state.color)
+      is MultiColorLightStateEnum.RED -> HardwareLightVisualState.createForColor(state.color)
+      is MultiColorLightStateEnum.GREEN -> HardwareLightVisualState.createForColor(state.color)
+      is MultiColorLightStateEnum.BLINK_GREEN ->
+          HardwareLightVisualState.createBlinking(
+              Color.fromRGB(0.0, 1.0, 0.0),
+              Color.fromRGB(1.0, 1.0, 0.0),
+              1.0,
+              1.0
+          )
+      is MultiColorLightStateEnum.CUSTOM -> HardwareLightVisualState.createForColor(state.color)
+      is MultiColorLightStateEnum.OFF -> HardwareLightVisualState.createForColor(Color.blackColor())
+    }
+  }
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (javaClass != other?.javaClass) return false
+
+    other as MultiColorLightState
+
+    return state == other.state
+  }
+
+  override fun hashCode(): Int {
+    return state.hashCode()
+  }
+}
 
 enum class OxiFunctionButtons(val value: Int) {
   ARP(0),
@@ -127,7 +169,7 @@ class OxiOneHardware(private val inputPort: MidiIn, private val outputPort: Midi
     val graphics = image.createGraphics()
 
     // Set the background to white
-    graphics.color = Color.WHITE
+    graphics.color = java.awt.Color.WHITE
     graphics.fillRect(0, 0, width, height)
 
     // Set the font to a predefined size
@@ -139,13 +181,13 @@ class OxiOneHardware(private val inputPort: MidiIn, private val outputPort: Midi
     lines.forEachIndexed { index, line ->
       if (index == 4) {
         // Draw a black background for this line
-        graphics.color = Color.BLACK
+        graphics.color = java.awt.Color.BLACK
         graphics.fillRect(0, y - metrics.ascent, width, metrics.height)
 
         // Draw the text in white
-        graphics.color = Color.WHITE
+        graphics.color = java.awt.Color.WHITE
       } else {
-        graphics.color = Color.BLACK
+        graphics.color = java.awt.Color.BLACK
       }
 
       graphics.drawString(line, 0, y)
@@ -173,7 +215,7 @@ class OxiOneHardware(private val inputPort: MidiIn, private val outputPort: Midi
           if (y < height) {
             val pixel = image.getRGB(x, y)
             // Set the bit if the pixel is black (or whatever your "on" color is)
-            if (pixel == Color.BLACK.rgb) {
+            if (pixel == java.awt.Color.BLACK.rgb) {
               byte = byte or (1 shl yOffset)
             }
           }
@@ -261,30 +303,29 @@ class OxiOneHardware(private val inputPort: MidiIn, private val outputPort: Midi
     val x = buttonNote / 16
 
     if (!blink) {
-      if (state == MultiColorLightStateEnum.BLINK_GREEN) {
-        if (blinkMap[buttonNote] == null) blinkLED(buttonNote)
+      if (state is MultiColorLightStateEnum.BLINK_GREEN) {
+        if (blinkMap[buttonNote] == null) blinkLED(buttonNote, state.color)
       } else {
         cancelBlink(buttonNote)
       }
     }
 
-    val color =
-        when (state) {
-          MultiColorLightStateEnum.GREEN -> Color.GREEN
-          MultiColorLightStateEnum.RED -> Color.RED
-          MultiColorLightStateEnum.YELLOW -> Color.YELLOW
-          else -> Color.BLACK
-        }
-    setLEDColor(x, y, color.red, color.green, color.blue)
+    setLEDColor(
+        x,
+        y,
+        (state.color.red * 255).toInt(),
+        (state.color.green * 255).toInt(),
+        (state.color.blue * 255).toInt()
+    )
   }
 
-  private fun blinkLED(buttonNote: Int) {
+  private fun blinkLED(buttonNote: Int, color: Color) {
     blinkMap[buttonNote]?.cancel()
     blinkMap[buttonNote] = launch {
       while (isActive) {
         updateLED(buttonNote, MultiColorLightStateEnum.GREEN, blink = true)
         delay(150)
-        updateLED(buttonNote, MultiColorLightStateEnum.YELLOW, blink = true)
+        updateLED(buttonNote, MultiColorLightStateEnum.CUSTOM(color), blink = true)
         delay(500)
       }
     }

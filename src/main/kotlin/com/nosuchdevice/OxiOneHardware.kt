@@ -284,11 +284,14 @@ class OxiOneHardware(private val inputPort: MidiIn, private val outputPort: Midi
     outputPort.sendSysex(sysexMessage)
   }
 
-  fun setLight(id: Int, value: Int) {
-    val idHigh = id shr 7
-    val idLow = id and 0x7F
-    val valueHigh = value shr 7
-    val valueLow = value and 0x7F
+  fun setLight(light: OxiLights, state: OxiLightStates) {
+    val id = light.value
+    val value = state.value
+
+    val idHigh = (id shr 4) and 0x0F
+    val idLow = id and 0x0F
+    val valueHigh = (value shr 4) and 0x0F
+    val valueLow = value and 0x0F
     val sysexMessage =
         "f0 02 " +
             String.format("%02x %02x ", idHigh, idLow) +

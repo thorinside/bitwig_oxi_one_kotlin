@@ -52,22 +52,22 @@ class TransportHandler(
 
     playButtonLight.isOn.onUpdateHardware {
       hardware.setLight(
-          OxiLights.PLAY.value,
-          if (it) OxiLightStates.ON.value else OxiLightStates.OFF.value
+          OxiLights.PLAY,
+          if (it) OxiLightStates.ON else OxiLightStates.OFF
       )
     }
 
     stopButtonLight.isOn.onUpdateHardware {
       hardware.setLight(
-          OxiLights.STOP.value,
-          if (it) OxiLightStates.OFF.value else OxiLightStates.SHORT_ON.value
+          OxiLights.STOP,
+          if (it) OxiLightStates.OFF else OxiLightStates.SHORT_ON
       )
     }
 
     recordButtonLight.isOn.onUpdateHardware {
       hardware.setLight(
-          OxiLights.REC.value,
-          if (it) OxiLightStates.ON.value else OxiLightStates.OFF.value
+          OxiLights.REC,
+          if (it) OxiLightStates.ON else OxiLightStates.OFF
       )
     }
   }

@@ -6,31 +6,13 @@ import com.nosuchdevice.OxiOneHardware
 
 class RemoteHandler(
     private val inPort: MidiIn,
-    private val trackBank: TrackBank,
-    private val cursorTrack: CursorTrack,
+    private val remoteControlBank: CursorRemoteControlsPage,
     private val hardwareSurface: HardwareSurface,
     private val hardware: OxiOneHardware,
-    private val host: ControllerHost,
 ) {
-  private val cursorDevice =
-      cursorTrack.createCursorDevice(
-          "XONE_CURSOR_DEVICE",
-          "Cursor Device",
-          0,
-          CursorDeviceFollowMode.FOLLOW_SELECTION
-      )
-  private val remoteControlBank = cursorDevice.createCursorRemoteControlsPage(4)
 
   init {
     addRemoteControlKnobs()
-
-    trackBank.followCursorTrack(cursorTrack)
-
-    cursorTrack.solo().markInterested()
-    cursorTrack.mute().markInterested()
-
-    cursorDevice.isEnabled.markInterested()
-    cursorDevice.isWindowOpen.markInterested()
   }
 
   private fun addRemoteControlKnobs() {

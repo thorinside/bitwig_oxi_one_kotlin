@@ -9,10 +9,12 @@ class RemoteHandler(
     private val remoteControlBank: CursorRemoteControlsPage,
     private val hardwareSurface: HardwareSurface,
     private val hardware: OxiOneHardware,
+    private val host: ControllerHost,
 ) {
 
   init {
     addRemoteControlKnobs()
+    addNavigationButtons()
   }
 
   private fun addRemoteControlKnobs() {
@@ -30,6 +32,14 @@ class RemoteHandler(
         name().addValueObserver { updateOLEDDisplay() }
       }
     }
+  }
+
+  private fun addNavigationButtons() {
+    val prevButton = hardwareSurface.createHardwareButton("ENC_BUTTON_1")
+    val nextButton = hardwareSurface.createHardwareButton("ENC_BUTTON_4")
+
+    remoteControlBank.selectPreviousAction().addBinding(prevButton.pressedAction())
+    remoteControlBank.selectNextAction().addBinding(nextButton.pressedAction())
   }
 
   private fun updateOLEDDisplay() {

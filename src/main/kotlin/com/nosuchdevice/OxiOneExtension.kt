@@ -3,11 +3,13 @@ package com.nosuchdevice
 import com.bitwig.extension.api.util.midi.ShortMidiMessage
 import com.bitwig.extension.callback.ShortMidiMessageReceivedCallback
 import com.bitwig.extension.controller.ControllerExtension
+import com.bitwig.extension.controller.api.BooleanValue
 import com.bitwig.extension.controller.api.ControllerHost
 import com.bitwig.extension.controller.api.CursorDeviceFollowMode
 import com.bitwig.extension.controller.api.CursorRemoteControlsPage
 import com.bitwig.extension.controller.api.CursorTrack
 import com.bitwig.extension.controller.api.HardwareSurface
+import com.bitwig.extension.controller.api.MidiIn
 import com.bitwig.extension.controller.api.PinnableCursorDevice
 import com.bitwig.extension.controller.api.TrackBank
 import com.nosuchdevice.clip.ClipHandler
@@ -57,8 +59,10 @@ class OxiOneExtension(definition: OxiOneExtensionDefinition, host: ControllerHos
             hardwareSurface = hardwareSurface,
         )
 
-    trackBank = host.createMainTrackBank(15, 0, 8)
-    cursorTrack = host.createCursorTrack("OXI_CURSOR_TRACK", "Cursor Track", 0, 4, true)
+    trackBank = host.createMainTrackBank(16, 0, 8)
+    cursorTrack = host.createCursorTrack("OXI_ONE_CURSOR", "Cursor Track", 0, 8, true)
+
+    val isShiftPressed = addShiftButton(inPort)
 
     clipHandler =
         ClipHandler(
@@ -67,16 +71,18 @@ class OxiOneExtension(definition: OxiOneExtensionDefinition, host: ControllerHos
             hardwareSurface = hardwareSurface,
             hardware = hardware,
             host = host,
+            isShiftPressed = isShiftPressed,
         )
 
     cursorDevice =
         cursorTrack.createCursorDevice(
-            "OXI_ONE_CURSOR_DEVICE",
+            "OXI_ONE_CURSOR",
             "Cursor Device",
-            0,
+            2,
             CursorDeviceFollowMode.FOLLOW_SELECTION
         )
-    remoteControlBank = cursorDevice.createCursorRemoteControlsPage(4)
+
+    remoteControlBank = cursorDevice.createCursorRemoteControlsPage(8)
 
     trackBank.followCursorTrack(cursorTrack)
 
@@ -90,9 +96,11 @@ class OxiOneExtension(definition: OxiOneExtensionDefinition, host: ControllerHos
         RemoteHandler(
             inPort = inPort,
             remoteControlBank = remoteControlBank,
+            cursorDevice = cursorDevice,
             hardwareSurface = hardwareSurface,
             hardware = hardware,
             host = host,
+            isShiftPressed = isShiftPressed,
         )
 
     navHandler =
@@ -129,6 +137,34 @@ class OxiOneExtension(definition: OxiOneExtensionDefinition, host: ControllerHos
         }
       }
     }
+  }
+
+  private fun addShiftButton(inPort: MidiIn): BooleanValue {
+    val shiftButton = hardwareSurface.createHardwareButton("SHIFT_BUTTON")
+    val shiftButtonLight = hardwareSurface.createOnOffHardwareLight("SHIFT_BUTTON_LIGHT")
+
+    shiftButton.setBackgroundLight(shiftButtonLight)
+    shiftButton.releasedAction().apply {
+      setActionMatcher(inPort.createNoteOffActionMatcher(1, OxiFunctionButtons.SHIFT.value))
+      // setBinding(
+      //     host.createAction(Runnable { isShiftPressed = false }, Supplier { "Release Shift" })
+      // )
+    }
+    shiftButton.pressedAction().apply {
+      setActionMatcher(inPort.createNoteOnActionMatcher(1, OxiFunctionButtons.SHIFT.value))
+      // setBinding(host.createAction(Runnable { isShiftPressed = true }, Supplier { "Shift" }))
+    }
+
+    shiftButton.isPressed.markInterested()
+    shiftButtonLight.isOn.apply {
+      setValueSupplier { shiftButton.isPressed.get() }
+
+      onUpdateHardware {
+        hardware.setLight(OxiLights.SHIFT, if (it) OxiLightStates.ON else OxiLightStates.OFF)
+      }
+    }
+
+    return shiftButton.isPressed
   }
 
   override fun exit() {

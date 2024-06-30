@@ -10,51 +10,84 @@ class RemoteHandler(
     private val hardwareSurface: HardwareSurface,
     private val hardware: OxiOneHardware,
     private val host: ControllerHost,
+    private val cursorDevice: CursorDevice,
+    private val isShiftPressed: BooleanValue,
 ) {
+
+  data class Binding(val knob: RelativeHardwareKnob, var binding: HardwareBinding?)
+
+  private val knobs = mutableListOf<Binding>()
 
   init {
     addRemoteControlKnobs()
-    addNavigationButtons()
+    isShiftPressed.addValueObserver {
+      updateBindings()
+      updateOLEDDisplay()
+    }
   }
 
   private fun addRemoteControlKnobs() {
+    for (i in 0 until 4) {
+      knobs.add(
+          Binding(
+              hardwareSurface.createRelativeHardwareKnob("ENC_$i").apply {
+                setAdjustValueMatcher(inPort.createRelative2sComplementCCValueMatcher(0, i, 127))
+              },
+              null
+          )
+      )
+    }
+
     for (i in 0 until remoteControlBank.parameterCount) {
       remoteControlBank.getParameter(i).apply {
         markInterested()
         setIndication(true)
-
-        val hardwareKnob = hardwareSurface.createRelativeHardwareKnob("ENC_$i")
-        val valueMatcher = inPort.createRelative2sComplementCCValueMatcher(0, i, 127)
-        hardwareKnob.setAdjustValueMatcher(valueMatcher)
-        addBinding(hardwareKnob)
-
         value().addValueObserver { updateOLEDDisplay() }
         name().addValueObserver { updateOLEDDisplay() }
       }
     }
+
+    updateBindings()
   }
 
-  private fun addNavigationButtons() {
-    val prevButton = hardwareSurface.createHardwareButton("ENC_BUTTON_1")
-    val nextButton = hardwareSurface.createHardwareButton("ENC_BUTTON_4")
+  private fun updateBindings() {
+    var i = 0
 
-    remoteControlBank.selectPreviousAction().addBinding(prevButton.pressedAction())
-    remoteControlBank.selectNextAction().addBinding(nextButton.pressedAction())
+    knobs.forEach { it.binding?.removeBinding() }
+
+    val offset = if (isShiftPressed.get()) 4 else 0
+
+    for (j in 0 until remoteControlBank.parameterCount) {
+      remoteControlBank.getParameter(j).apply {
+        setIndication(false)
+        if (j >= offset && i < 4) {
+          setIndication(true)
+          knobs[i].binding = addBinding(knobs[i].knob)
+          i++
+        }
+      }
+    }
   }
 
   private fun updateOLEDDisplay() {
+    var i = 0
     val displayData = StringBuilder()
 
-    for (i in 0 until 4) {
-      val parameter = remoteControlBank.getParameter(i)
-      val name = parameter.name().get()
-      val value = parameter.value().get()
+    val offset = if (isShiftPressed.get()) 4 else 0
 
-      displayData.append(
-          String.format("%d) %-10s: %3d%%\n", i + 1, name.take(10), (value * 100).toInt())
-      )
+    for (j in 0 until remoteControlBank.parameterCount) {
+      if (j >= offset && i < 4) {
+        val parameter = remoteControlBank.getParameter(j)
+        val name = parameter.name().get()
+        val value = parameter.value().get()
+
+        displayData.append(
+            String.format("%d) %-10s: %3d%%\n", j + 1, name.take(10), (value * 100).toInt())
+        )
+        i++
+      }
     }
-    displayData.append("(1)   (2)   (3)   (4)\n")
+    displayData.append("(${1 + offset})   (${2 + offset})   (${3 + offset})   (${4 + offset})\n")
     sendToOLEDDisplay(displayData.toString())
   }
 

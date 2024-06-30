@@ -4,9 +4,6 @@ import com.bitwig.extension.api.util.midi.ShortMidiMessage
 import com.bitwig.extension.controller.api.*
 import com.nosuchdevice.MultiColorLightState
 import com.nosuchdevice.MultiColorLightStateEnum
-import com.nosuchdevice.OxiFunctionButtons
-import com.nosuchdevice.OxiLightStates
-import com.nosuchdevice.OxiLights
 import com.nosuchdevice.OxiOneHardware
 import java.util.function.Supplier
 
@@ -16,14 +13,12 @@ class ClipHandler(
     private val hardwareSurface: HardwareSurface,
     private val hardware: OxiOneHardware,
     private val host: ControllerHost,
+    private val isShiftPressed: BooleanValue,
 ) {
-
-  private var isShiftPressed: Boolean = false
 
   private val sceneBank = trackBank.sceneBank()
 
   init {
-    addShiftButton()
     addClipLaunching()
   }
 
@@ -39,8 +34,6 @@ class ClipHandler(
         clip.color().markInterested()
         clip.hasContent().markInterested()
 
-        host.println("Adding GRID_BUTTON_${i}_$j")
-
         val gridButton = hardwareSurface.createHardwareButton("GRID_BUTTON_${i}_$j")
         val gridButtonLight =
             hardwareSurface.createMultiStateHardwareLight("GRID_BUTTON_LIGHT_${i}_$j")
@@ -54,7 +47,7 @@ class ClipHandler(
               host.createAction(
                   Runnable {
                     if (clip.isPlaying.get()) {
-                      if (isShiftPressed) {
+                      if (isShiftPressed.get()) {
                         clip.launchReleaseAlt()
                       } else {
                         clip.launchRelease()
@@ -79,7 +72,7 @@ class ClipHandler(
                     if (clip.isPlaying.get() || clip.isRecording.get()) {
                       track.stop()
                     } else {
-                      if (isShiftPressed) {
+                      if (isShiftPressed.get()) {
                         clip.launchAlt()
                       } else {
                         clip.launch()
@@ -107,40 +100,6 @@ class ClipHandler(
 
           onUpdateHardware { hardware.updateLED(buttonNote, (it as MultiColorLightState).state) }
         }
-      }
-
-      var p = track.pan()
-      p.markInterested()
-      p.setIndication(true)
-
-      p = track.volume()
-      p.markInterested()
-      p.setIndication(true)
-    }
-  }
-
-  private fun addShiftButton() {
-    val shiftButton = hardwareSurface.createHardwareButton("SHIFT_BUTTON")
-    val shiftButtonLight = hardwareSurface.createOnOffHardwareLight("SHIFT_BUTTON_LIGHT")
-
-    shiftButton.setBackgroundLight(shiftButtonLight)
-    shiftButton.releasedAction().apply {
-      setActionMatcher(inPort.createNoteOffActionMatcher(1, OxiFunctionButtons.SHIFT.value))
-      setBinding(
-          host.createAction(Runnable { isShiftPressed = false }, Supplier { "Release Shift" })
-      )
-    }
-    shiftButton.pressedAction().apply {
-      setActionMatcher(inPort.createNoteOnActionMatcher(1, OxiFunctionButtons.SHIFT.value))
-      setBinding(host.createAction(Runnable { isShiftPressed = true }, Supplier { "Shift" }))
-    }
-
-    shiftButton.isPressed.markInterested()
-    shiftButtonLight.isOn.apply {
-      setValueSupplier { shiftButton.isPressed.get() }
-
-      onUpdateHardware {
-        hardware.setLight(OxiLights.SHIFT, if (it) OxiLightStates.ON else OxiLightStates.OFF)
       }
     }
   }

@@ -12,7 +12,7 @@ This Bitwig Extension works for Bitwig 5.1 and highter.
 Build it with:
 
 ```
-$ ./gradlew setup
+$ ./gradlew installBwExtension
 ```
 
 Then add a controller in Bitwig, find the OXI brand, and add the OXI One Remote. Choose one of the OXI Midi ports.

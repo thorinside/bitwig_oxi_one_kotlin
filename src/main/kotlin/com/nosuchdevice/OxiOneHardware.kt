@@ -266,19 +266,22 @@ class OxiOneHardware(private val inputPort: MidiIn, private val outputPort: Midi
     }
   }
 
+  private fun encodeColor(number: Int): Pair<Int, Int> {
+    val highByte = number shr 7
+    val lowByte = number and 0x7F
+    return Pair(highByte, lowByte)
+  }
+
   private fun setLEDColor(x: Int, y: Int, r: Int, g: Int, b: Int) {
-    val rHigh = r shr 7
-    val rLow = r and 0x7F
-    val gHigh = g shr 7
-    val gLow = g and 0x7F
-    val bHigh = b shr 7
-    val bLow = b and 0x7F
+    val red = encodeColor(r)
+    val green = encodeColor(g)
+    val blue = encodeColor(b)
     val sysexMessage =
         "f0 01 " +
             String.format("%02x %02x ", x, y) +
-            String.format("%02x %02x ", rHigh, rLow) +
-            String.format("%02x %02x ", gHigh, gLow) +
-            String.format("%02x %02x ", bHigh, bLow) +
+            String.format("%02x %02x ", red.first, red.second) +
+            String.format("%02x %02x ", green.first, green.second) +
+            String.format("%02x %02x ", blue.first, blue.second) +
             "f7"
 
     outputPort.sendSysex(sysexMessage)
